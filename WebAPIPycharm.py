@@ -1,9 +1,7 @@
 import requests
 import pandas as pd
 import numpy as np
-from openpyxl import load_workbook
 import json
-import glob
 
 
 def calculateSize(df):

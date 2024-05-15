@@ -1,8 +1,20 @@
-import requests
+import streamlit as st
 import pandas as pd
+import requests
 import numpy as np
 import json
 
+
+# Function to display data in Streamlit
+def display_data(df):
+
+
+    #st.write(f"## total commits :{df.groupby('Owner')[["Owner"]].count()}")
+    owner_commits = df.groupby('Owner').size().reset_index(name='Total Commits')
+    st.write("## Total Commits by Owner:")
+    for index, row in owner_commits.iterrows():
+        st.write(f"{row['Owner']}: {row['Total Commits']}")
+    st.dataframe(df)
 
 def calculateSize(df):
     conditions = [
@@ -49,7 +61,7 @@ def query_api_with_fallback(url, Replace_url, Opensource):
     return responsedf
 
 
-def save_data(all_data, filepath):
+def save_data(all_data):
     responsedf = pd.concat(all_data, ignore_index=True)
     return responsedf
 
@@ -122,18 +134,42 @@ def getfinalResponse(Owner, opensource):
             #  responsedf=pd.concat([responseAndroidOpendf, responsedf]).drop_duplicates().reset_index(drop=True)
 
 
-def main(df):
 
-    responsedf = pd.DataFrame()
-    output_path = "C:/Users/kiran/OneDrive/Documents/Projects/Gerrit/XlFiles/outputConsolidated.xlsx"
+def main():
+
+   # df=read_data()
+    df_input=pd.DataFrame()
+    owners = []
+    opensources = []
+
+    # Display text input boxes for entering owner and opensource values
+    num_rows = st.number_input("Number of rows", min_value=1, value=1)
+    for i in range(num_rows):
+        owner = st.text_input(f"Owner {i + 1}")
+        opensource = st.text_input(f"Opensource {i + 1}")
+        owners.append(owner)
+        opensources.append(opensource)
+
+    # Button to trigger data processing
+    if st.button("Process Data"):
+        # Create DataFrame from lists of owners and opensources
+        df_input = pd.DataFrame({"Owner": owners, "Opensource": opensources})
+
     all_data = []
-    for index, row in df.iterrows():
+    for index, row in df_input.iterrows():
         owner = row['Owner']
         projects = row['Opensource'].split(',')
         for project in projects:
             all_data.extend(getfinalResponse(owner, project.strip()))
-    df = save_data(all_data, output_path)
-    return df
+    #df_input = save_data(all_data)
+
+
+    if all_data:
+        responsedf = pd.concat(all_data, ignore_index=True)
+        display_data(responsedf)
+    else:
+        st.write("Enter the details.")
+
 
 if __name__ == "__main__":
     main()

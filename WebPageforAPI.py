@@ -3,18 +3,86 @@ import pandas as pd
 import requests
 import numpy as np
 import json
-
+import plotly.express as px
 
 # Function to display data in Streamlit
 def display_data(df):
 
 
-    #st.write(f"## total commits :{df.groupby('Owner')[["Owner"]].count()}")
     owner_commits = df.groupby('Owner').size().reset_index(name='Total Commits')
     st.write("## Total Commits by Owner:")
     for index, row in owner_commits.iterrows():
         st.write(f"{row['Owner']}: {row['Total Commits']}")
     st.dataframe(df)
+
+
+def generateDashboards(df):
+
+
+    #set filter for owner
+    st.sidebar.header("Set you Filter here")
+
+    ownerNames = st.sidebar.multiselect(
+        "select Owner:",
+        options=df["Owner"].unique(),
+        default=df["Owner"].unique()
+    )
+
+    df_selection = df.query("Owner==@ownerNames")
+    st.dataframe(df_selection)
+
+    st.title(":bar_chart: Dashboards")
+    st.markdown("##")
+
+    # create table chart for Total Commit done by each owner
+
+    Total_commits = df_selection.groupby(["Owner", "OpenSource"]).agg({"OpenSource": "count"}).rename(
+        columns={"OpenSource": "Total Commits"})
+    st.dataframe(Total_commits)
+
+    left_column, middle_column, right_column = st.columns(3)
+
+    # prepare for Barchart for Total number of commits by Branch
+    result = df_selection.groupby('branch').agg(totalcommit=('subject', 'count')).reset_index().sort_values(
+        by='totalcommit')
+
+    fig_Barchart = px.bar(
+        result,
+        x="totalcommit",
+        y="branch",
+        orientation="h",
+        title="<b>Total Commits by Repo</b>"
+    )
+    st.plotly_chart(fig_Barchart)
+
+    # Donut Chart
+
+    result = df_selection.groupby('OpenSource')['OpenSource'].count().reset_index(name='OpenSourceCount')
+
+    # Create a donut chart using Plotly
+    fig = px.pie(result, values='OpenSourceCount', names='OpenSource', title='Opensource Count ', hole=0.5)
+
+    st.plotly_chart(fig)
+
+    # Line Chart
+
+    df_selection['updated'] = df_selection['updated'].str[:10]
+
+    df_selection['updated'] = df_selection['updated'].astype("datetime64[ns]")
+
+    print(df_selection.info())
+    result_line = df_selection.groupby(df_selection['updated'].dt.year)['subject'].count().reset_index(
+        name='CommitCount')
+
+    fig_line = px.line(
+        result_line,
+        x=result_line['updated'],
+        y="CommitCount",
+        title="Commit Count Over Time"
+    )
+
+    st.plotly_chart(fig_line)
+
 
 def calculateSize(df):
     conditions = [
@@ -135,9 +203,12 @@ def getfinalResponse(Owner, opensource):
 
 
 
-def main():
 
-   # df=read_data()
+def main():
+    st.set_page_config(page_title="Opensource Dashboard",
+                      page_icon=":bar_chart:",
+                      layout="wide"
+                      )
     df_input=pd.DataFrame()
     owners = []
     opensources = []
@@ -167,6 +238,8 @@ def main():
     if all_data:
         responsedf = pd.concat(all_data, ignore_index=True)
         display_data(responsedf)
+        generateDashboards(responsedf)
+
     else:
         st.write("Enter the details.")
 
